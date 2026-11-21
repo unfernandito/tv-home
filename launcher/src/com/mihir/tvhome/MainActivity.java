@@ -92,6 +92,7 @@ public class MainActivity extends Activity {
     private long wallChangedAt;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable rotateWallpaper = this::nextWallpaper;
+    static final int NEON_CYAN = 0xFF00F0FF, NEON_PINK = 0xFFFF2BD6;
     static final long WALLPAPER_INTERVAL_MS = 10 * 60 * 1000;
     private TextView greeting, clock, ampm, date, title, wifiPill, appsLabel;
     private int glowColor = 0xFF3A3A3A;
@@ -113,12 +114,15 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        handleFeedExtras(getIntent());
         dockApps = getResources().getStringArray(R.array.dock_apps);
         hidden.addAll(Arrays.asList(getResources().getStringArray(R.array.hidden_apps)));
         hidden.add(getPackageName());
         liveTvPkg = getString(R.string.live_tv_package);
         inputPickerPkg = getString(R.string.input_picker_package);
         cols = getResources().getInteger(R.integer.columns);
+        // Always on: the screen stays awake (no screensaver, no sleep) while home is showing.
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
@@ -168,9 +172,33 @@ public class MainActivity extends Activity {
         super.onDestroy();
     }
 
+    /**
+     * ADB configures the sale banners through the home activity (the service is not exported):
+     *   am start -n com.mihir.tvhome/.MainActivity --es feed_token T [--es feed_url U]
+     *   am start -n com.mihir.tvhome/.MainActivity --es test_title "..." --es test_body "..." [--ei test_delay_ms 10000]
+     */
+    private void handleFeedExtras(Intent in) {
+        if (in == null) return;
+        android.content.SharedPreferences p = getSharedPreferences(SaleWatcher.PREFS, MODE_PRIVATE);
+        if (in.hasExtra("feed_token") || in.hasExtra("feed_url")) {
+            android.content.SharedPreferences.Editor e = p.edit();
+            if (in.hasExtra("feed_token")) e.putString("token", in.getStringExtra("feed_token"));
+            if (in.hasExtra("feed_url")) e.putString("url", in.getStringExtra("feed_url"));
+            e.remove("since").apply();
+        }
+        Intent svc = new Intent(this, SaleWatcher.class);
+        if (in.hasExtra("test_title")) {
+            svc.putExtra("test_title", in.getStringExtra("test_title"));
+            svc.putExtra("test_body", in.getStringExtra("test_body"));
+            svc.putExtra("test_delay_ms", in.getIntExtra("test_delay_ms", 0));
+        }
+        startForegroundService(svc);
+    }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        handleFeedExtras(intent);
         // Home pressed while already home: jump back to the first dock app.
         if (inputsPopup != null) inputsPopup.dismiss();
         if (!dockCards.isEmpty()) dockCards.get(0).requestFocus();
@@ -197,10 +225,10 @@ public class MainActivity extends Activity {
         // Scrim: darker at the top (clock, pills) and bottom (dock) so text stays readable.
         View scrim = new View(this);
         scrim.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0xB3000000, 0x40000000, 0x26000000, 0x8C000000, 0xE6000000}));
+                new int[]{0xCC0D0221, 0x552A0845, 0x26000000, 0x99120428, 0xEE05010F}));
         root.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
         gridShade = new View(this);
-        gridShade.setBackgroundColor(0xB3000000);
+        gridShade.setBackgroundColor(0xCC0D0221);
         gridShade.setAlpha(0f);
         root.addView(gridShade, new FrameLayout.LayoutParams(-1, -1));
         try {
@@ -237,8 +265,8 @@ public class MainActivity extends Activity {
         bottom.setClipToPadding(false);
         hero.addView(bottom, lp(-1, -2, Gravity.BOTTOM, dp(48), 0, dp(48), dp(30)));
 
-        title = text(34, "sans-serif-light", Color.WHITE);
-        title.setShadowLayer(dp(18), 0, 0, 0x66000000);
+        title = text(30, "monospace", Color.WHITE);
+        title.setShadowLayer(dp(14), 0, 0, NEON_CYAN);
         title.setSingleLine(true);
         bottom.addView(title, new LinearLayout.LayoutParams(-2, -2));
         ((LinearLayout.LayoutParams) title.getLayoutParams()).setMargins(dp(8), 0, 0, dp(14));
@@ -250,14 +278,14 @@ public class MainActivity extends Activity {
         dockRow.setClipToPadding(false);
         dockRow.setPadding(dp(20), dp(22), dp(20), dp(22));
         GradientDrawable band = new GradientDrawable();
-        band.setCornerRadius(dp(26));
-        band.setColor(0x1FFFFFFF);
-        band.setStroke(dp(1), 0x14FFFFFF);
+        band.setCornerRadius(dp(6));
+        band.setColor(0x660D0221);
+        band.setStroke(dp(2), 0xCCFF2BD6);
         dockRow.setBackground(band);
         bottom.addView(dockRow, new LinearLayout.LayoutParams(-1, -2));
 
-        appsLabel = text(11, "sans-serif-medium", 0x99FFFFFF);
-        appsLabel.setText("ALL APPS");
+        appsLabel = text(11, "monospace", NEON_PINK);
+        appsLabel.setText("// TODAS LAS APPS");
         appsLabel.setLetterSpacing(0.22f);
         content.addView(appsLabel, llp(-2, -2, dp(68), dp(8), 0, dp(18)));
 
@@ -275,7 +303,7 @@ public class MainActivity extends Activity {
 
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
-        greeting = text(10, "sans-serif-medium", 0xB3FFFFFF);
+        greeting = text(10, "monospace", NEON_CYAN);
         greeting.setLetterSpacing(0.25f);
         greeting.setSingleLine(true);
         greeting.setPadding(0, 0, dp(16), 0);
@@ -286,26 +314,28 @@ public class MainActivity extends Activity {
         clock = text(54, "sans-serif-thin", Color.WHITE);
         clock.setIncludeFontPadding(false);
         clockRow.addView(clock);
-        ampm = text(12, "sans-serif-light", 0xCCFFFFFF);
+        ampm = text(12, "monospace", NEON_CYAN);
         clockRow.addView(ampm, llp(-2, -2, dp(6), 0, 0, dp(8)));
         left.addView(clockRow, llp(-2, -2, 0, dp(2), 0, dp(2)));
 
-        date = text(10, "sans-serif-medium", 0x99FFFFFF);
+        date = text(10, "monospace", 0xE6FF2BD6);
         date.setSingleLine(true);
         date.setPadding(0, 0, dp(16), 0); // letterSpacing is not counted in the measured width
         date.setLetterSpacing(0.22f);
         left.addView(date);
-        for (TextView t : new TextView[]{greeting, clock, ampm, date}) t.setShadowLayer(dp(10), 0, dp(1), 0xB3000000);
+        for (TextView t : new TextView[]{greeting, clock, ampm, date}) t.setShadowLayer(dp(10), 0, 0, 0xCC000000);
+        clock.setShadowLayer(dp(12), 0, 0, NEON_PINK);
+        greeting.setShadowLayer(dp(8), 0, 0, NEON_CYAN);
         header.addView(left, new FrameLayout.LayoutParams(dp(420), -2, Gravity.START | Gravity.TOP));
 
         LinearLayout right = new LinearLayout(this);
         right.setGravity(Gravity.CENTER_VERTICAL);
         right.setClipChildren(false);
-        TextView inputs = pill("Inputs", "⇥");
+        TextView inputs = pill("Entradas", "⇥");
         inputs.setOnClickListener(v -> showInputs(v));
         wifiPill = pill("Wi-Fi", "◉");
         wifiPill.setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIFI_SETTINGS)));
-        TextView settings = pill("Settings", "⚙");
+        TextView settings = pill("Ajustes", "⚙");
         settings.setOnClickListener(v -> launch(new Intent(Settings.ACTION_SETTINGS)));
         for (TextView p : new TextView[]{inputs, wifiPill, settings}) {
             right.addView(p, llp(-2, dp(30), dp(10), 0, 0, 0));
@@ -316,20 +346,20 @@ public class MainActivity extends Activity {
     }
 
     private TextView pill(String label, String glyph) {
-        TextView p = text(11, "sans-serif-medium", 0xE6FFFFFF);
+        TextView p = text(11, "monospace", NEON_CYAN);
         p.setText(glyph + "  " + label);
         p.setGravity(Gravity.CENTER);
         p.setPadding(dp(14), 0, dp(14), 0);
         p.setFocusable(true);
         p.setId(View.generateViewId());
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(dp(15));
-        bg.setColor(0x66000000);
-        bg.setStroke(dp(1), 0x33FFFFFF);
+        bg.setCornerRadius(dp(4));
+        bg.setColor(0x990D0221);
+        bg.setStroke(dp(1), 0x9900F0FF);
         p.setBackground(bg);
         p.setOnFocusChangeListener((v, has) -> {
-            bg.setColor(has ? 0xF2FFFFFF : 0x66000000);
-            ((TextView) v).setTextColor(has ? 0xFF111111 : 0xE6FFFFFF);
+            bg.setColor(has ? NEON_CYAN : 0x990D0221);
+            ((TextView) v).setTextColor(has ? 0xFF0D0221 : NEON_CYAN);
             v.animate().scaleX(has ? 1.08f : 1f).scaleY(has ? 1.08f : 1f)
                     .setInterpolator(new OvershootInterpolator(2f)).setDuration(220).start();
             if (has) { lastFocusedId = v.getId(); scroll.smoothScrollTo(0, 0); fadeGlow(1f); }
@@ -441,9 +471,9 @@ public class MainActivity extends Activity {
         // Focus ring and sheen, drawn above the art.
         GradientDrawable ring = new GradientDrawable();
         ring.setCornerRadius(dp(10));
-        ring.setStroke(dp(2), 0xE6FFFFFF);
+        ring.setStroke(dp(3), NEON_CYAN);
         ring.setOrientation(GradientDrawable.Orientation.TL_BR);
-        ring.setColors(new int[]{0x26FFFFFF, 0x00FFFFFF, 0x00FFFFFF});
+        ring.setColors(new int[]{0x40FF2BD6, 0x00FF2BD6, 0x2600F0FF});
         View shine = new View(this);
         shine.setBackground(ring);
         shine.setAlpha(0f);
@@ -451,7 +481,7 @@ public class MainActivity extends Activity {
 
         box.addView(card, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView label = text(11, "sans-serif-medium", Color.WHITE);
+        TextView label = text(11, "monospace", NEON_CYAN);
         label.setText(app.label);
         label.setSingleLine(true);
         label.setGravity(Gravity.CENTER);
@@ -540,9 +570,9 @@ public class MainActivity extends Activity {
         list.setOrientation(LinearLayout.VERTICAL);
         list.setPadding(dp(8), dp(8), dp(8), dp(8));
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(dp(16));
-        bg.setColor(0xF02A2A2E);
-        bg.setStroke(dp(1), 0x26FFFFFF);
+        bg.setCornerRadius(dp(6));
+        bg.setColor(0xF20D0221);
+        bg.setStroke(dp(2), 0xCCFF2BD6);
         list.setBackground(bg);
 
         PopupWindow pw = new PopupWindow(list, dp(200), -2, true);
@@ -561,10 +591,10 @@ public class MainActivity extends Activity {
                 if (!launch(i)) openPackage(inputPickerPkg);
             }));
         }
-        if (isInstalled(liveTvPkg)) rows.add(inputRow("Live TV", () -> openPackage(liveTvPkg)));
-        if (inputs.isEmpty() && isInstalled(inputPickerPkg)) rows.add(inputRow("All sources…", () -> openPackage(inputPickerPkg)));
+        if (isInstalled(liveTvPkg)) rows.add(inputRow("TV en vivo", () -> openPackage(liveTvPkg)));
+        if (inputs.isEmpty() && isInstalled(inputPickerPkg)) rows.add(inputRow("Todas las fuentes…", () -> openPackage(inputPickerPkg)));
 
-        if (rows.isEmpty()) rows.add(inputRow("Settings", () -> launch(new Intent(Settings.ACTION_SETTINGS))));
+        if (rows.isEmpty()) rows.add(inputRow("Ajustes", () -> launch(new Intent(Settings.ACTION_SETTINGS))));
         for (TextView r : rows) {
             r.setOnClickListener(v -> { pw.dismiss(); ((Runnable) v.getTag()).run(); });
             list.addView(r, new LinearLayout.LayoutParams(-1, dp(36)));
@@ -591,7 +621,7 @@ public class MainActivity extends Activity {
     }
 
     private TextView inputRow(String label, Runnable action) {
-        TextView r = text(13, "sans-serif", Color.WHITE);
+        TextView r = text(13, "monospace", NEON_CYAN);
         r.setText(label);
         r.setTag(action);
         r.setId(View.generateViewId());
@@ -599,12 +629,12 @@ public class MainActivity extends Activity {
         r.setPadding(dp(14), 0, dp(14), 0);
         r.setFocusable(true);
         GradientDrawable bg = new GradientDrawable();
-        bg.setCornerRadius(dp(10));
+        bg.setCornerRadius(dp(4));
         bg.setColor(Color.TRANSPARENT);
         r.setBackground(bg);
         r.setOnFocusChangeListener((v, has) -> {
-            bg.setColor(has ? 0xF2FFFFFF : Color.TRANSPARENT);
-            r.setTextColor(has ? 0xFF111111 : Color.WHITE);
+            bg.setColor(has ? NEON_CYAN : Color.TRANSPARENT);
+            r.setTextColor(has ? 0xFF0D0221 : NEON_CYAN);
         });
         return r;
     }
@@ -614,7 +644,7 @@ public class MainActivity extends Activity {
     private void updateClock() {
         Calendar now = Calendar.getInstance();
         int h = now.get(Calendar.HOUR_OF_DAY);
-        greeting.setText(h < 5 ? "GOOD NIGHT" : h < 12 ? "GOOD MORNING" : h < 17 ? "GOOD AFTERNOON" : "GOOD EVENING");
+        greeting.setText(h < 5 ? "BUENAS NOCHES" : h < 12 ? "BUENOS DÍAS" : h < 20 ? "BUENAS TARDES" : "BUENAS NOCHES");
         boolean is24 = android.text.format.DateFormat.is24HourFormat(this);
         clock.setText(new SimpleDateFormat(is24 ? "H:mm" : "h:mm", Locale.getDefault()).format(now.getTime()));
         ampm.setText(is24 ? "" : (h < 12 ? "AM" : "PM"));

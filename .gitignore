@@ -10,3 +10,5 @@ shots/
 launcher/build/
 .DS_Store
 __pycache__/
+backups/
+tools/.tv_feed_token
