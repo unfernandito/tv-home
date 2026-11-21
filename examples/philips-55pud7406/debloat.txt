@@ -1,0 +1,26 @@
+# Philips 55PUD7406/77 (TPV, MediaTek PH0M_EA_T32), Android TV 11, build RTM2.210929.098
+# Apply: tools/disable.sh examples/philips-55pud7406/debloat.txt
+# Undo:  STOCK_LAUNCHER=com.google.android.tvlauncher/.MainActivity tools/restore.sh <same file>
+# Everything is DISABLED for user 0, never uninstalled.
+# Kept on purpose for this household: Chromecast (mediashell), AirCast, Backdrop screensaver,
+# Ambilight (org.droidtv.ambisvc), Pluto TV, Google Meet. Unknown org.droidtv.{eum,gel,icp} left alone.
+
+# Philips / TPV telemetry, registration and ads
+org.droidtv.candeebug                      # dacclient: usage analytics upload
+org.droidtv.tv.frameworklogger             # framework usage logger
+org.droidtv.nettvregistration              # Philips account / product registration
+org.droidtv.nettv.market                   # Philips "App Gallery" promos
+android.autoinstalls.config.tpv.device     # silently installs promoted apps
+fusion.android.tv.demo                     # retail store demo mode
+com.mediatek.android.leanbacklauncher.partnercustomizer  # partner promo rows on the stock home
+
+# Google extras
+com.google.android.tvrecommendations       # sponsored recommendation rows
+com.google.android.feedback
+com.google.android.play.games
+com.google.android.videos                  # Play Movies & TV
+
+# Apps and features this household doesn't use
+com.tcl.browser                            # BrowseHere
+org.droidtv.android.fitness                # Philips Fitness
+com.mediatek.wwtv.mediaplayer              # MMP USB media player
