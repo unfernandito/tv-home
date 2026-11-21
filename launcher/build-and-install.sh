@@ -35,6 +35,7 @@ printf '%s\n' \
   "pm install -r /data/local/tmp/tvhome.apk" \
   "rm -f /data/local/tmp/tvhome.apk" \
   "pm grant com.mihir.tvhome android.permission.ACCESS_FINE_LOCATION" \
+  "appops set com.mihir.tvhome SYSTEM_ALERT_WINDOW allow" \
   "cmd package set-home-activity --user 0 com.mihir.tvhome/.MainActivity" \
   "pm disable-user --user 0 $STOCK_LAUNCHER" \
   "pm disable-user --user 0 com.google.android.tungsten.setupwraith" \
@@ -42,4 +43,10 @@ printf '%s\n' \
   "am force-stop com.android.tv.settings" \
   "input keyevent KEYCODE_HOME" \
   | "$PY" -I ../tools/tv.py --batch
+# Sale banners: hand the hub token to the TV (kept out of git and out of the APK).
+if [ -s ../tools/.tv_feed_token ]; then
+  echo "am start -n com.mihir.tvhome/.MainActivity --es feed_token $(cat ../tools/.tv_feed_token)" \
+    | "$PY" -I ../tools/tv.py --batch >/dev/null
+  echo "Sale banners on (token from tools/.tv_feed_token)."
+fi
 echo "Installed. Press Home on the remote."
